@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Task Planner Agent</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .loader {
+      border-top-color: #3498db;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+  <script>
+  document.documentElement.classList.add('dark');
+</script>
+</head>
+<body class="bg-gray-100 text-gray-900 dark:bg-black dark:text-gray-100">
+  <div class="container mx-auto p-6 max-w-3xl">
+    <div class="bg-white dark:bg-zinc-900 p-8 rounded-2xl shadow-lg">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold">Task Planner Agent 🔹</h1>
+        <p class="text-gray-500 dark:text-gray-400 mt-2">Enter your goal and I'll generate a plan for you.</p>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-4 mb-6">
+        <input type="text" id="goalInput" placeholder="e.g., Prepare for my exam"
+          class="flex-grow p-3 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500"/>
+        <button id="generatePlanBtn"
+          class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg">
+          Generate Plan
+        </button>
+      </div>
+
+      <div id="loader" class="hidden text-center">
+        <div class="loader border-4 border-gray-200 rounded-full w-12 h-12 mx-auto mb-2"></div>
+        <p class="text-gray-600">Generating your plan...</p>
+      </div>
+
+      <div id="errorMessage" class="hidden text-center text-red-600 mt-4"></div>
+
+      <div id="planOutput" class="hidden mt-8 space-y-4"></div>
+    </div>
+  </div>
+
+  <script>
+    const goalInput = document.getElementById('goalInput');
+    const generatePlanBtn = document.getElementById('generatePlanBtn');
+    const loader = document.getElementById('loader');
+    const planOutput = document.getElementById('planOutput');
+    const errorMessage = document.getElementById('errorMessage');
+
+    generatePlanBtn.addEventListener('click', generatePlan);
+    goalInput.addEventListener('keyup', (e) => {
+      if (e.key === 'Enter') generatePlan();
+    });
+
+    async function generatePlan() {
+      const goal = goalInput.value.trim();
+      if (!goal) {
+        showError("Please enter a goal.");
+        return;
+      }
+
+      // UI loading
+      loader.classList.remove('hidden');
+      planOutput.classList.add('hidden');
+      errorMessage.classList.add('hidden');
+      planOutput.innerHTML = '';
+
+      try {
+        const response = await fetch("http://localhost:3000/generate-plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ goal })
+        });
+
+        if (!response.ok) throw new Error("Server error");
+
+        const data = await response.json();
+
+        if (!data.plan || data.plan.length === 0) {
+          throw new Error("Invalid response from server.");
+        }
+
+        showPlan(data.plan, goal);
+
+      } catch (err) {
+        showError("Something went wrong. Please try again.");
+        console.error(err);
+      } finally {
+        loader.classList.add('hidden');
+      }
+    }
+
+    function showPlan(plan, goal) {
+      const heading = document.createElement('h2');
+      heading.className = "text-2xl font-bold mb-4";
+      heading.textContent = `Your Plan for: "${goal}"`;
+      planOutput.appendChild(heading);
+
+      plan.forEach((step, index) => {
+        const item = document.createElement('div');
+        item.className = "p-4 bg-gray-50 dark:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700";
+        item.innerHTML = `
+          <div class="flex items-start">
+            <div class="bg-blue-500 text-white font-bold w-8 h-8 rounded-full flex items-center justify-center mr-4">${index + 1}</div>
+            <div>
+              <h3 class="text-lg font-semibold">${step.title}</h3>
+              <p class="text-gray-600 dark:text-gray-300">${step.description}</p>
+            </div>
+          </div>`;
+        planOutput.appendChild(item);
+      });
+
+      planOutput.classList.remove('hidden');
+    }
+
+    function showError(msg) {
+      errorMessage.textContent = msg;
+      errorMessage.classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
